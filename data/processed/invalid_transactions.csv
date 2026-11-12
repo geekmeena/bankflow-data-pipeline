@@ -1,0 +1,2 @@
+transaction_id,customer_id,date,amount,currency,transaction_type,category
+TXN1009,C002,2026-10-05,,GBP,Debit,Groceries

@@ -1,0 +1,12 @@
+transaction_id,customer_id,date,amount,currency,transaction_type,category
+TXN1001,C001,2026-10-01,2500,GBP,Credit,Salary
+TXN1002,C002,2026-10-01,120,GBP,Debit,Shopping
+TXN1003,C001,2026-10-02,85,GBP,Debit,Groceries
+TXN1004,C003,2026-10-02,1500,GBP,Credit,Salary
+TXN1005,C002,2026-10-03,45,GBP,Debit,Transport
+TXN1006,C001,2026-10-03,200,GBP,Debit,Rent
+TXN1007,C004,2026-10-04,75,GBP,Debit,Shopping
+TXN1008,C003,2026-10-04,300,GBP,Credit,Transfer
+TXN1008,C003,2026-10-04,300,GBP,Credit,Transfer
+TXN1009,C002,2026-10-05,,GBP,Debit,Groceries
+TXN1010,C001,2026-10-05,60,GBP,Debit,Transport
