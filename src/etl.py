@@ -13,6 +13,7 @@ def transform(transactions):
     seen_ids = set()
     valid_transactions = []
     invalid_transactions = []
+    flagged_transactions = []
 
     for row in transactions:
         transaction_id = row["transaction_id"]
@@ -22,10 +23,12 @@ def transform(transactions):
 
             if row["amount"] == "":
                 invalid_transactions.append(row)
+            elif float(row["amount"]) < 0:
+                flagged_transactions.append(row)
             else:
                 valid_transactions.append(row)
 
-    return valid_transactions, invalid_transactions
+    return valid_transactions, invalid_transactions, flagged_transactions
 
 
 # LOAD
@@ -40,13 +43,16 @@ def load(output_dir):
 
     for filename in [
         "valid_transactions.csv",
-        "invalid_transactions.csv"
+        "invalid_transactions.csv",
+        "flagged_transactions.csv"
     ]:
         local_path = output_dir / filename
 
         s3_key = (
             f"processed/{filename}"
             if filename.startswith("valid")
+            else f"flagged/{filename}"
+            if filename.startswith("flagged")
             else f"invalid/{filename}"
         )
 
@@ -58,10 +64,11 @@ def load(output_dir):
 def main():
     transactions = get_transactions()
 
-    valid_transactions, invalid_transactions = transform(transactions)
+    valid_transactions, invalid_transactions, flagged_transactions = transform(transactions)
 
     print("Valid transactions:", len(valid_transactions))
     print("Invalid transactions:", len(invalid_transactions))
+    print("Flagged transactions:", len(flagged_transactions))
 
     output_dir = file_path.parent / "processed"
     output_dir.mkdir(exist_ok=True)
@@ -71,6 +78,7 @@ def main():
     for filename, records in [
         ("valid_transactions.csv", valid_transactions),
         ("invalid_transactions.csv", invalid_transactions),
+        ("flagged_transactions.csv", flagged_transactions),
     ]:
         with open(output_dir / filename, "w", newline="") as file:
             writer = csv.DictWriter(file, fieldnames=fieldnames)

@@ -3,3 +3,12 @@ __pycache__/
 .pytest_cache/
 .env
 .DS_Store
+# Airflow
+airflow/.env
+airflow/logs/
+airflow/config/
+airflow/plugins/
+airflow/**/__pycache__/
+
+# Python
+*.pyc
