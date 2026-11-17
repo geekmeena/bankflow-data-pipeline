@@ -49,7 +49,10 @@ x-airflow-common:
   # In order to add custom dependencies or upgrade provider distributions you can use your extended image.
   # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
-  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.3.1}
+  image: bankflow-airflow:latest
+  build:
+    context: .
+    dockerfile: Dockerfile
   # build: .
   env_file:
     - ${ENV_FILE_PATH:-.env}
@@ -84,6 +87,8 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
     - ../src:/opt/airflow/bankflow/src:ro
     - ${HOME}/.aws:/home/airflow/.aws:ro
+    - ../dbt/bankflow_dbt:/opt/airflow/bankflow/dbt:ro
+    - ./dbt_profiles:/home/airflow/.dbt:ro
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on

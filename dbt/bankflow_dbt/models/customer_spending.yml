@@ -1,0 +1,10 @@
+---
+version: 2
+
+models:
+  - name: customer_spending
+    columns:
+      - name: customer_id
+        data_tests:
+          - not_null
+          - unique

@@ -12,3 +12,12 @@ airflow/**/__pycache__/
 
 # Python
 *.pyc
+
+# dbt generated files
+**/target/
+**/dbt_packages/
+**/logs/
+**/.user.yml
+
+# Local database credentials
+.pgpass
