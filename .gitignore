@@ -21,3 +21,13 @@ airflow/**/__pycache__/
 
 # Local database credentials
 .pgpass
+
+# Terraform
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/crash.log
+**/crash.*.log
+**/*.tfvars
+**/*.tfvars.json
+**/*.tfplan
