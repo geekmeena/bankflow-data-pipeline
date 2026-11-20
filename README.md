@@ -1,118 +1,344 @@
-BankFlow — AWS Cloud ETL Data Pipeline
-Overview
-BankFlow is a data engineering portfolio project that processes synthetic banking transactions using Python, AWS S3, PostgreSQL, Apache Airflow, and dbt.
+# BankFlow — AWS Cloud ETL Data Pipeline
 
-The pipeline reads raw transaction data from S3, removes duplicates, separates invalid or flagged records, loads valid transactions into PostgreSQL, and builds a customer-spending summary with dbt. Airflow schedules and monitors the workflow.
-Technologies
-- Python — ETL processing and validation
-- AWS S3 — Raw data storage; processed, invalid, and flagged outputs from the standalone ETL script
-- Boto3 — AWS S3 integration
-- PostgreSQL — Transaction storage and SQL analytics
-- Apache Airflow 3 — Workflow orchestration, scheduling, retries, and logs
-- dbt Core / dbt-postgres — SQL transformations and data tests
-- Docker Compose — Local Airflow environment with a custom image containing dbt
-- Pytest — Python ETL tests
-- Git & GitHub — Version control
-Architecture
-Synthetic transaction CSV
+## Overview
+
+BankFlow is an end-to-end **Data Engineering and Cloud ETL portfolio project** that processes synthetic banking transactions using Python, AWS S3, PostgreSQL, Apache Airflow, dbt and Streamlit.
+
+The pipeline extracts raw transactions from AWS S3, removes duplicates, identifies invalid and flagged records, and loads valid transactions into PostgreSQL.
+
+Apache Airflow orchestrates the workflow, while dbt performs SQL transformations and data-quality testing. Streamlit provides an interactive dashboard for analysing customer spending.
+
+## Technologies Used
+
+| Technology | Purpose |
+|---|---|
+| Python | ETL processing and data validation |
+| AWS S3 | Cloud storage for raw and processed data |
+| Boto3 | Python integration with AWS |
+| PostgreSQL | Transaction storage and SQL analytics |
+| Apache Airflow 3 | Workflow orchestration and scheduling |
+| dbt Core | SQL transformations and data-quality tests |
+| Docker Compose | Containerised Airflow environment |
+| Terraform | Infrastructure as Code for AWS S3 |
+| GitHub Actions | Automated CI testing |
+| Streamlit | Interactive analytics dashboard |
+| Pandas | Data analysis and processing |
+| Pytest | Automated Python unit tests |
+| Git & GitHub | Version control and project management |
+
+## Pipeline Architecture
+
+```text
+Synthetic Banking Transactions (CSV)
+                |
+                v
+             AWS S3
+                |
+                v
+          Apache Airflow
+                |
+                v
+        Extract (Python)
+                |
+                v
+       Transform (Python)
+                |
+                v
+       Load Valid Records
+                |
+                v
+           PostgreSQL
+                |
+                v
+           dbt Build
+                |
+         +------+------+
+         |             |
+         v             v
+   SQL Models     Data Quality Tests
          |
          v
-       AWS S3
+  Customer Spending View
          |
          v
-    Apache Airflow
-         |
-   Extract (Python)
-         |
-  Transform (Python)
-         |
-  Load valid records
-         |
-     PostgreSQL
-         |
-    dbt build
-         |
- customer_spending view
-    + dbt data tests
-The standalone Python ETL script can also write valid, invalid, and flagged CSV files to separate S3 prefixes.
-ETL and Data Quality
-1. Extract: Read raw transactions from S3 using Boto3.
-2. Transform: Remove duplicate transaction IDs; separate records with missing amounts and flag negative amounts.
-3. Load: Insert valid records into PostgreSQL using an Airflow-managed database connection.
-4. Model and test: Use dbt to create the dbt_dev.customer_spending view and test its customer_id column for not_null and unique values.
-PostgreSQL inserts use ON CONFLICT (transaction_id) DO NOTHING to avoid duplicate inserts when the pipeline is rerun.
+  Streamlit Analytics Dashboard
+```
 
-These are introductory validation rules for a synthetic dataset, not a production fraud-detection system.
-Apache Airflow
-The bankflow_pipeline DAG runs the tasks in this order:
+**Additional components:**
+
+- **Terraform:** Manages the existing AWS S3 bucket.
+- **GitHub Actions:** Automatically runs Python unit tests on pushes and pull requests.
+- **Standalone ETL:** Can upload valid, invalid and flagged transaction files to separate S3 prefixes.
+
+## ETL Process
+
+### 1. Extract
+
+- Read raw banking transactions from AWS S3 using Boto3.
+- Convert CSV data into Python records.
+
+### 2. Transform
+
+- Remove duplicate transaction IDs.
+- Identify transactions with missing amounts.
+- Flag negative transaction amounts for investigation.
+- Separate valid, invalid and flagged transactions.
+
+### 3. Load
+
+- Insert valid transactions into PostgreSQL.
+- Use an Airflow-managed PostgreSQL connection.
+- Prevent duplicate inserts using:
+
+```sql
+ON CONFLICT (transaction_id) DO NOTHING
+```
+
+### 4. SQL Transformation and Testing
+
+dbt creates the `dbt_dev.customer_spending` view, calculating total debit spending for each customer.
+
+It also performs automated data-quality tests.
+
+## Apache Airflow Orchestration
+
+The `bankflow_pipeline` DAG automates the workflow:
+
+```text
 extract → transform → load → test_dbt_connection
-The final task is currently named test_dbt_connection, but its command has been updated to dbt build --select customer_spending, so it builds the model and runs its associated tests.
-- Schedule: Daily at 09:00 UTC
-- Retries: Two retries, one minute apart
-- Catchup: Disabled
-- Monitoring: Airflow task logs and run status
-- Database credentials: Obtained from an Airflow connection at task runtime, not embedded in the DAG
-dbt Transformation and Tests
-The customer_spending model sums debit transaction amounts by customer from public.transactions and creates the view dbt_dev.customer_spending.
+```
 
-Successful Airflow dbt build:
-Check	Result
-customer_spending SQL view	Passed
-customer_id not null	Passed
-customer_id unique	Passed
-Total	3 passed, 0 errors
+The final task retains the name `test_dbt_connection`, but now executes `dbt build --select customer_spending` to build the SQL model and run its tests.
 
+### Airflow Configuration
 
-Python Tests
-Three Pytest tests cover duplicate removal, missing amount detection, and negative amount flagging.
+- **Schedule:** Daily at 09:00 UTC
+- **Retries:** 2
+- **Retry delay:** 1 minute
+- **Catchup:** Disabled
+- **Monitoring:** Task execution logs and DAG status
+- **Database connection:** Managed through Airflow
+
+## dbt Transformation and Data Quality
+
+The `customer_spending` model calculates customer spending using debit transactions stored in PostgreSQL.
+
+### Automated dbt Tests
+
+| Test | Result |
+|---|---|
+| Customer spending SQL model | Passed |
+| Customer ID — Not Null | Passed |
+| Customer ID — Unique | Passed |
+| **Total** | **3 Passed, 0 Errors** |
+
+The dbt models and tests run automatically through Apache Airflow.
+
+## Python Unit Testing
+
+The project includes three Pytest tests covering:
+
+- Duplicate transaction removal
+- Missing transaction amounts
+- Negative transaction flagging
+
+Run locally:
+
+```bash
 python -m pytest tests/ -v
-Demonstration Results
-The current example contains 12 synthetic source records.
-Result	Count
-Valid transactions	9
-Invalid transactions (missing amount)	1
-Flagged transactions (negative amount)	1
-Duplicate transactions removed	1
-Transactions stored in PostgreSQL	9
+```
 
+## Transaction Processing Results
 
-The latest Airflow run completed the dbt model and its two data tests successfully.
-Running Locally
-This project has been tested with local PostgreSQL and Airflow running in Docker Compose. Running it on another machine requires local configuration.
-1. Create a Python virtual environment and install project dependencies:
-   pip install -r requirements.txt
-2. Configure AWS credentials locally, create the required S3 bucket and upload the synthetic transaction CSV. Configure a local PostgreSQL database and the transaction table.
-3. Run the standalone ETL pipeline if desired:
-   python -m src.etl
-4. Start Airflow (the custom image installs dbt):
-   cd airflow
-   docker compose --parallel 1 build
-   docker compose up -d --no-build
-5. Open http://localhost:8080, configure the Airflow PostgreSQL connection bankflow_postgres, and trigger bankflow_pipeline.
-The local Docker setup mounts the dbt project read-only. dbt log and target output directories are redirected to writable temporary paths inside the container.
-Configuration note: The setup currently uses a local AWS profile, a developer-managed PostgreSQL instance, and Docker networking (host.docker.internal). It is not a one-command production deployment.
+The current dataset contains **12 synthetic banking transactions**.
 
-Security Notes
-- Use synthetic data only; do not upload real customer banking information.
-- Keep AWS access keys, database passwords, and other credentials out of Git.
-- Keep local .env files and AWS credentials files untracked.
-- dbt's profiles.yml uses environment-variable references for database credentials rather than hard-coded secrets.
-- Airflow's dbt task obtains credentials from the Airflow PostgreSQL connection at runtime.
-- Review git status and staged files before pushing changes.
-Future Improvements
-- Expand Python and dbt data-quality checks
-- Provision AWS resources with Terraform
-- Add GitHub Actions for automated testing and CI/CD
-- Add a transaction analytics dashboard
-- Explore an optional LLM-powered data analysis assistant
-Project Status
-Component	Status
-Python ETL and AWS S3	Complete
-PostgreSQL storage and SQL analysis	Complete
-Airflow orchestration	Complete
-Python ETL unit tests	Complete
-dbt model and automated dbt tests in Airflow	Complete
-Terraform, CI/CD, and dashboard	Planned
+| Result | Count |
+|---|---:|
+| Valid transactions | 9 |
+| Invalid transactions | 1 |
+| Flagged transactions | 1 |
+| Duplicate transactions removed | 1 |
+| Records stored in PostgreSQL | 9 |
 
+These are introductory validation rules designed for demonstration rather than production fraud detection.
 
-BankFlow uses synthetic banking transactions for learning and portfolio demonstration purposes.
+## Streamlit Analytics Dashboard
+
+BankFlow includes an interactive dashboard built using **Streamlit and Pandas**.
+
+The dashboard reads processed customer-spending data from the PostgreSQL view generated by dbt.
+
+### Dashboard Features
+
+- Total customer spending metric
+- Customer spending bar chart
+- Customer-level spending table
+- Direct PostgreSQL integration
+
+### Current Dashboard Results
+
+| Customer | Total Spending |
+|---|---:|
+| C001 | 345.00 |
+| C002 | 165.00 |
+| C004 | 75.00 |
+| **Total** | **585.00** |
+
+### Run the Dashboard Locally
+
+Activate your Python virtual environment and configure `DB_USER` and `DB_PASSWORD` as environment variables.
+
+Start Streamlit:
+
+```bash
+streamlit run dashboard/app.py
+```
+
+Open:
+
+http://localhost:8501
+
+## Terraform — Infrastructure as Code
+
+Terraform manages the existing AWS S3 bucket used by BankFlow.
+
+### Implementation
+
+- Configured the AWS provider for `ap-south-1`.
+- Imported the existing S3 bucket into Terraform state.
+- Applied project-identification tags.
+- Added `prevent_destroy` protection.
+- Excluded local Terraform state files from Git.
+
+### Terraform Commands
+
+```bash
+cd terraform
+terraform init
+terraform plan
+```
+
+**Note:** The S3 bucket was imported rather than created. Terraform state must be protected and should not be uploaded to GitHub.
+
+## GitHub Actions — Continuous Integration
+
+BankFlow uses GitHub Actions to automatically run Python tests when code is pushed to the `main` branch or submitted through a pull request.
+
+### CI Workflow
+
+```text
+Push Code to GitHub
+        |
+        v
+GitHub Actions
+        |
+        v
+Set Up Python 3.12
+        |
+        v
+Install Dependencies
+        |
+        v
+Run Pytest
+        |
+        v
+Pass / Fail Result
+```
+
+The workflow is defined in:
+
+`.github/workflows/ci.yml`
+
+**Status:** GitHub Actions CI completed successfully.
+
+The project currently implements automated testing (CI), not automated application deployment (CD).
+
+## Running the Project Locally
+
+### 1. Install Dependencies
+
+Create and activate a Python virtual environment, then install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Configure AWS and PostgreSQL
+
+Configure:
+
+- AWS credentials locally using an AWS CLI profile.
+- An S3 bucket containing the synthetic transaction CSV.
+- A PostgreSQL database and transactions table.
+- Required database credentials using environment variables.
+
+### 3. Run the Standalone ETL
+
+```bash
+python -m src.etl
+```
+
+### 4. Start Apache Airflow
+
+```bash
+cd airflow
+
+docker compose --parallel 1 build
+
+docker compose up -d --no-build
+```
+
+Open the Airflow dashboard:
+
+http://localhost:8080
+
+Configure the `bankflow_postgres` connection and trigger the `bankflow_pipeline` DAG.
+
+### 5. Run the Analytics Dashboard
+
+From the project root:
+
+```bash
+streamlit run dashboard/app.py
+```
+
+Open http://localhost:8501.
+
+**Note:** The project currently uses a local PostgreSQL instance, Docker networking and developer-managed AWS credentials. Additional configuration is required for another machine or production deployment.
+
+## Security Practices
+
+- Only synthetic banking data is used.
+- AWS credentials and PostgreSQL passwords are not stored in source code.
+- Local `.env` files are excluded from Git.
+- Terraform state files are excluded from Git.
+- dbt profiles use environment variables for credentials.
+- Airflow retrieves database credentials through its configured connection.
+- Project changes are reviewed before being pushed to GitHub.
+
+## Project Status
+
+| Component | Status |
+|---|---|
+| Python ETL Pipeline | Completed |
+| AWS S3 Integration | Completed |
+| PostgreSQL & SQL Analytics | Completed |
+| Apache Airflow Orchestration | Completed |
+| Python Unit Testing | Completed |
+| dbt SQL Transformations | Completed |
+| dbt Data Quality Tests | Completed |
+| Terraform for AWS S3 | Completed |
+| GitHub Actions CI | Completed |
+| Streamlit Analytics Dashboard | Completed |
+
+## Future Improvements
+
+- Expand data-quality validation and automated testing.
+- Add deployment automation (CD).
+- Extend Terraform infrastructure provisioning.
+- Improve dashboard analytics and visualisations.
+- Explore an optional LLM-powered data analysis assistant.
+
+---
+
+**Disclaimer:** BankFlow uses synthetic banking transactions exclusively for educational, learning and portfolio demonstration purposes.
